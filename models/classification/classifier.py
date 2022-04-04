@@ -41,16 +41,22 @@ class Encoder(nn.Module):
 
 
 class Classifier(nn.Module):
-    def __init__(self, in_features=49152, n_classes=1000, dropout=0.3, n_hidden=4096):
+    def __init__(self, in_features=49152, n_classes=1000, dropout=0.3, hidden_layers=1, n_hidden=4096):
         super().__init__()
+
+        hidden = []
+        for _ in range(hidden_layers):
+            hidden.extend([
+                nn.Dropout(p=dropout),
+                nn.Linear(n_hidden, n_hidden),
+                nn.ReLU(),
+            ])
 
         self.mlp = nn.Sequential(
             nn.Flatten(),
             nn.Linear(in_features, n_hidden),
             nn.ReLU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(n_hidden, n_hidden),
-            nn.ReLU(),
+            *hidden,
             nn.Dropout(p=dropout),
             nn.Linear(n_hidden, n_classes),
             # nn.Sigmoid()
@@ -63,7 +69,8 @@ class Classifier(nn.Module):
 
 if __name__ == "__main__":
     x = torch.randn((8, 3, 256, 256))
-    encoder = Encoder(feature_layers=5, feature_scale=64)
-    clf = Classifier(in_features=encoder.feature_size)
-    y = clf(encoder(x))
-    print(y.shape)
+    # encoder = Encoder(feature_layers=5, feature_scale=64)
+    clf = Classifier(hidden_layers=0)#in_features=encoder.feature_size)
+    print(clf)
+    # y = clf(encoder(x))
+    # print(y.shape)

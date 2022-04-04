@@ -12,7 +12,7 @@ import config
 from utils import load_checkpoint, save_checkpoint, norm, unnorm
 from models.classification import Classifier
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
-from datasets.classification import imagenet_mini, ImageDataset
+from datasets.classification import imagenet_mini, cifar10, ImageDataset
 
 
 def train(epoch, model, dataloader, opt, criterion, labels, co=None, **kwargs):
@@ -60,7 +60,7 @@ def train(epoch, model, dataloader, opt, criterion, labels, co=None, **kwargs):
                 x = unnorm(x)
             x = x[0]
             y = pred.argmax(dim=-1)[0]
-            label = imagenet_mini.labels_dict[labels[y]]
+            label = labels[y]
             save_image(x, f"results/{epoch}_{i//log_step}_{label}.png")
 
     return losses
@@ -107,7 +107,7 @@ def val(epoch, model, dataloader, criterion, labels, co=None, **kwargs):
                 x = unnorm(x)
             x = x[0]
             y = pred.argmax(dim=-1)[0]
-            label = imagenet_mini.labels_dict[labels[y]]
+            label = labels[y]
             save_image(x, f"results/{epoch}_val_{label}.png")
     return losses
 
@@ -121,7 +121,7 @@ def main():
     )
     # CH = 3 if compressor is None else 192
 
-    model = Classifier(in_features=192*16*16)
+    model = Classifier(in_features=192*16*16, n_classes=10, hidden_layers=0, n_hidden=1024)
     opt = optim.Adam(
         list(model.parameters()),
         lr=config.LEARNING_RATE,
@@ -136,11 +136,11 @@ def main():
         )
 
     dataset_train = ImageDataset(
-        root=imagenet_mini.train_root,
+        root=cifar10.train_root,
         transform=config.transform_train,
     )
     dataset_val = ImageDataset(
-        root=imagenet_mini.val_root,
+        root=cifar10.val_root,
         transform=config.transform_val,
     )
 
