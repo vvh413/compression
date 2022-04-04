@@ -40,11 +40,12 @@ class ImageDataset(Dataset):
 
 
 if __name__ == "__main__":
-    from imagenet_mini import train_root, labels_dict
+    # from imagenet_mini import train_root, labels_dict
+    from cifar10 import train_root
 
     dataset = ImageDataset(train_root)
     img, target = dataset[0]
     T.ToPILImage()(img).show()
     print(
-        img, target, dataset.labels[target], labels_dict[dataset.labels[target]]
+        img, target, dataset.labels[target]
     )
