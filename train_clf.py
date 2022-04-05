@@ -1,18 +1,18 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from torch.utils.data import DataLoader
 from torchvision import utils
 from torchvision.utils import save_image
 from tqdm import tqdm
 
-import numpy as np
 import config
-from utils import load_checkpoint, save_checkpoint, norm, unnorm
+from datasets.classification import (CompressedImageDataset, ImageDataset,
+                                     cifar10, imagenet_mini)
 from models.classification import Classifier
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
-from datasets.classification import imagenet_mini, cifar10, ImageDataset
+from utils import load_checkpoint, norm, save_checkpoint, unnorm
 
 
 def train(epoch, model, dataloader, opt, criterion, labels, co=None, **kwargs):
@@ -29,10 +29,10 @@ def train(epoch, model, dataloader, opt, criterion, labels, co=None, **kwargs):
         x = x.to(config.DEVICE)
         y = y.to(config.DEVICE)
 
-        if co:
-            x = co.compress(x).detach()
-        else:
-            x = norm(x)
+        # if co:
+        #     x = co.compress(x).detach()
+        # else:
+        #     x = norm(x)
 
         pred = model(x)
 
@@ -80,10 +80,10 @@ def val(epoch, model, dataloader, criterion, labels, co=None, **kwargs):
         x = x.to(config.DEVICE)
         y = y.to(config.DEVICE)
 
-        if co:
-            x = co.compress(x).detach()
-        else:
-            x = norm(x)
+        # if co:
+        #     x = co.compress(x).detach()
+        # else:
+        #     x = norm(x)
 
         pred = model(x)
 
@@ -117,11 +117,17 @@ def main():
 
     # compressor = None
     compressor = HyperpriorWrapper(
-        bmshj2018_hyperprior(config.COMPRESS_QUALITY, pretrained=True).eval().to(config.DEVICE), type="s"
+        bmshj2018_hyperprior(config.COMPRESS_QUALITY, pretrained=True)
+        .eval()
+        .to(config.DEVICE),
+        type="s",
     )
     # CH = 3 if compressor is None else 192
 
-    model = Classifier(in_features=192*16*16, n_classes=10, hidden_layers=0, n_hidden=1024)
+    # model = Classifier(in_features=192*16*16, n_classes=10, hidden_layers=0, n_hidden=1024)
+    model = Classifier(
+        in_features=192 * 16 * 16, n_classes=10, hidden_layers=1, n_hidden=1024
+    )
     opt = optim.Adam(
         list(model.parameters()),
         lr=config.LEARNING_RATE,
@@ -131,16 +137,16 @@ def main():
     criterion = nn.CrossEntropyLoss()
 
     if config.LOAD_MODEL:
-        load_checkpoint(
-            config.CHECKPOINT_CLASS, model, opt, config.LEARNING_RATE
-        )
+        load_checkpoint(config.CHECKPOINT_CLASS, model, opt, config.LEARNING_RATE)
 
-    dataset_train = ImageDataset(
+    dataset_train = CompressedImageDataset(
         root=cifar10.train_root,
+        compressor=compressor,
         transform=config.transform_train,
     )
-    dataset_val = ImageDataset(
+    dataset_val = CompressedImageDataset(
         root=cifar10.val_root,
+        compressor=compressor,
         transform=config.transform_val,
     )
 
@@ -160,7 +166,15 @@ def main():
     )
 
     for epoch in range(config.NUM_EPOCHS):
-        train(epoch, model, dataloader_train, opt, criterion, dataset_train.labels, compressor)
+        train(
+            epoch,
+            model,
+            dataloader_train,
+            opt,
+            criterion,
+            dataset_train.labels,
+            compressor,
+        )
         val(epoch, model, dataloader_val, criterion, dataset_val.labels, compressor)
 
         if config.SAVE_MODEL:

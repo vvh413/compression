@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
+from tqdm import tqdm
 
 
 class ImageDataset(Dataset):
@@ -39,6 +40,45 @@ class ImageDataset(Dataset):
         return img, self.label2int[label]
 
 
+class CompressedImageDataset(Dataset):
+    def __init__(self, root, compressor, transform=None):
+        self.root = root
+        self.transform = transform
+        self.compressor = compressor
+
+        self.labels = os.listdir(root)
+        self.label2int = {label: i for i, label in enumerate(self.labels)}
+
+        print("=> Compressing images")
+        self.images = [
+            self.__compress_image(label, image)
+            for label in tqdm(self.labels)
+            for image in tqdm(os.listdir(os.path.join(root, label)))
+        ]
+
+        self.len = len(self.images)
+
+    def __compress_image(self, label, image):
+        image_path = os.path.join(self.root, label, image)
+
+        img = Image.open(image_path).convert("RGB")
+
+        if self.transform:
+            img = self.transform(img)
+        else:
+            img = T.ToTensor()(img)
+
+        img = self.compressor.compress(img.unsqueeze(dim=0)).squeeze()
+        return label, img
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, index):
+        label, image = self.images[index]
+        return image, self.label2int[label]
+
+
 if __name__ == "__main__":
     # from imagenet_mini import train_root, labels_dict
     from cifar10 import train_root
@@ -46,6 +86,4 @@ if __name__ == "__main__":
     dataset = ImageDataset(train_root)
     img, target = dataset[0]
     T.ToPILImage()(img).show()
-    print(
-        img, target, dataset.labels[target]
-    )
+    print(img, target, dataset.labels[target])
