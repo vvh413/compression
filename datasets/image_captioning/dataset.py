@@ -1,12 +1,17 @@
 import json
 import os
 from collections import Counter
+from sklearn.model_selection import train_test_split
 
+import torch
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
+
+from random import choice
+
 
 # class CaptionsDataset(Dataset):
 __DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +48,6 @@ pad_ix = word_to_index["#PAD#"]
 
 
 def as_matrix(sequences, max_len=None):
-    """Convert a list of tokens into a matrix with padding"""
     max_len = max_len or max(map(len, sequences))
 
     matrix = np.zeros((len(sequences), max_len), dtype="int32") + pad_ix
@@ -52,6 +56,21 @@ def as_matrix(sequences, max_len=None):
         matrix[i, : len(row_ix)] = row_ix
 
     return matrix
+
+
+captions = np.array(captions)
+train_img_codes, val_img_codes, train_captions, val_captions = train_test_split(
+    img_codes, captions, test_size=0.1, random_state=42
+)
+
+
+def generate_batch(img_codes, captions, batch_size, max_caption_len=None):
+    random_image_ix = np.random.randint(0, len(img_codes), size=batch_size)
+    batch_images = img_codes[random_image_ix]
+    captions_for_batch_images = captions[random_image_ix]
+    batch_captions = list(map(choice, captions_for_batch_images))
+    batch_captions_ix = as_matrix(batch_captions, max_len=max_caption_len)
+    return torch.tensor(batch_images, dtype=torch.float32), torch.tensor(batch_captions_ix, dtype=torch.int64)
 
 
 if __name__ == "__main__":

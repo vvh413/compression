@@ -8,6 +8,11 @@ from models.captioning import CaptionNet
 
 from utils import load_checkpoint, save_checkpoint
 
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
+from tqdm import tqdm
+
+
 network = CaptionNet(n_tokens).to(config.DEVICE)
 
 dummy_img_vec = torch.randn(len(captions[0]), 2048)
@@ -60,46 +65,10 @@ assert all(
 
 optimizer = torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4)
 
-from sklearn.model_selection import train_test_split
-
-captions = np.array(captions)
-train_img_codes, val_img_codes, train_captions, val_captions = train_test_split(
-    img_codes, captions, test_size=0.1, random_state=42
-)
-
-from random import choice
-
-
-def generate_batch(img_codes, captions, batch_size, max_caption_len=None):
-
-    # sample random numbers for image/caption indicies
-    random_image_ix = np.random.randint(0, len(img_codes), size=batch_size)
-
-    # get images
-    batch_images = img_codes[random_image_ix]
-
-    # 5-7 captions for each image
-    captions_for_batch_images = captions[random_image_ix]
-
-    # pick one from a set of captions for each image
-    batch_captions = list(map(choice, captions_for_batch_images))
-
-    # convert to matrix
-    batch_captions_ix = as_matrix(batch_captions, max_len=max_caption_len)
-
-    return torch.tensor(batch_images, dtype=torch.float32).to(
-        config.DEVICE
-    ), torch.tensor(batch_captions_ix, dtype=torch.int64).to(config.DEVICE)
-
-
 batch_size = 32  # adjust me (done)
 n_epochs = 220  # adjust me (done)
 n_batches_per_epoch = 40  # adjust me (done)
 n_validation_batches = 5  # how many batches are used for validation after each epoch
-
-import matplotlib.pyplot as plt
-from IPython.display import clear_output
-from tqdm import tqdm
 
 train_losses = []
 val_losses = []
@@ -113,8 +82,11 @@ for epoch in range(n_epochs):
     )
     for _ in progress:
 
+        images_batch, captions_batch = generate_batch(train_img_codes, train_captions, batch_size)
+        images_batch, captions_batch = images_batch.to(config.DEVICE), captions_batch.to(config.DEVICE)
+
         loss_t = compute_loss(
-            network, *generate_batch(train_img_codes, train_captions, batch_size)
+            network, images_batch, captions_batch
         )
 
         optimizer.zero_grad()
