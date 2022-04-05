@@ -141,20 +141,16 @@ def main():
     if config.LOAD_MODEL:
         load_checkpoint(config.CHECKPOINT_CLASS, model, opt, config.LEARNING_RATE)
 
-    # dataset_train = CompressedImageDataset(
-    #     root=cifar10.train_root,
-    #     compressor=compressor,
-    #     transform=config.transform_train,
-    # )
-    # dataset_val = CompressedImageDataset(
-    #     root=cifar10.val_root,
-    #     compressor=compressor,
-    #     transform=config.transform_val,
-    # )
-    with open(cifar10.train_compressed, "rb") as f:
-        dataset_train = pickle.load(f)
-    with open(cifar10.val_compressed, "rb") as f:
-        dataset_val = pickle.load(f)
+    dataset_train = CompressedImageDataset(
+        root=cifar10.train_root,
+        compressor=compressor,
+        transform=config.transform_train,
+    )
+    dataset_val = CompressedImageDataset(
+        root=cifar10.val_root,
+        compressor=compressor,
+        transform=config.transform_val,
+    )
 
     dataloader_train = DataLoader(
         dataset_train,
