@@ -2,14 +2,13 @@ import copy
 import os
 import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+from torchvision import transforms as T
 
 import config
-
-import matplotlib.pyplot as plt
-from torchvision import transforms as T
 
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
