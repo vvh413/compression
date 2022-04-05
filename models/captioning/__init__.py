@@ -1,1 +1,1 @@
-from .classifier import Classifier, Encoder
+from .captioning import CaptionNet

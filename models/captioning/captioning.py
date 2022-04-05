@@ -2,68 +2,46 @@ import torch
 import torch.nn as nn
 
 
-class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.MaxPool2d(2, 2),
-        )
-            # nn.InstanceNorm2d(out_channels),
-            # nn.LeakyReLU(0.2),
+class CaptionNet(nn.Module):
+    def __init__(
+        self,
+        n_tokens=10000,
+        emb_size=128,
+        lstm_units=256,
+        cnn_feature_size=2048,
+        pad_ix=0,
+    ):
+        """A recurrent 'head' network for image captioning. See scheme above."""
+        super(self.__class__, self).__init__()
 
-    def forward(self, x):
-        return self.conv(x)
+        self.feature_to_h0 = nn.Linear(cnn_feature_size, lstm_units)
+        self.feature_to_c0 = nn.Linear(cnn_feature_size, lstm_units)
 
+        self.emb = nn.Embedding(n_tokens, emb_size, padding_idx=pad_ix)
+        self.lstm = nn.LSTM(emb_size, lstm_units, batch_first=True)
+        self.logits = nn.Linear(lstm_units, n_tokens)
 
-class Encoder(nn.Module):
-    def __init__(self, in_channels=3, feature_layers=2, feature_scale=64, in_size=(256, 256)):
-        super().__init__()
+    def forward(self, image_vectors, captions_ix):
+        """
+        Apply the network in training mode.
+        :param image_vectors: torch tensor containing inception vectors. shape: [batch, cnn_feature_size]
+        :param captions_ix: torch tensor containing captions as matrix. shape: [batch, word_i].
+            padded with pad_ix
+        :returns: logits for next token at each tick, shape: [batch, word_i, n_tokens]
+        """
+        initial_cell = self.feature_to_h0(image_vectors)
+        initial_hid = self.feature_to_c0(image_vectors)
 
-        features = [in_channels] + [min(2 ** i * feature_scale, 512) for i in range(feature_layers)]
-        self.conv = nn.Sequential(*[
-            ConvBlock(features[i], features[i+1])
-            for i in range(feature_layers)
-        ])
+        captions_emb = self.emb(captions_ix)
+        # apply recurrent layer to captions_emb.
+        # 1. initialize lstm state with initial_* from above
+        # 2. feed it with captions. Mind the dimension order in docstring
+        # 3. compute logits for next token probabilities
+        # Note: if you used nn.LSTM, you can just give it (initial_cell[None], initial_hid[None]) as second arg
 
-        self.feature_size = int(
-            in_size[0] * in_size[1] / (4 ** feature_layers) * features[-1]
-        )
+        # lstm_out should be lstm hidden state sequence of shape [batch, caption_length, lstm_units]
+        state = (initial_cell[None], initial_hid[None])
+        lstm_out, state = self.lstm(captions_emb, state)
 
-    def forward(self, x):
-        x = self.conv(x)
-        return x
-
-
-class Classifier(nn.Module):
-    def __init__(self, in_features=49152, n_classes=1000, dropout=0.3, n_hidden=4096):
-        super().__init__()
-
-        self.mlp = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(in_features, n_hidden),
-            nn.ReLU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(n_hidden, n_hidden),
-            nn.ReLU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(n_hidden, n_classes),
-            # nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        x = self.mlp(x)
-        return x
-
-
-if __name__ == "__main__":
-    x = torch.randn((8, 3, 256, 256))
-    encoder = Encoder(feature_layers=5, feature_scale=64)
-    clf = Classifier(in_features=encoder.feature_size)
-    y = clf(encoder(x))
-    print(y.shape)
+        logits = self.logits(lstm_out)
+        return logits
