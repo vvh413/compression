@@ -6,6 +6,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
 
+import pickle
+
 
 class ImageDataset(Dataset):
     def __init__(self, root, transform=None):
@@ -41,7 +43,7 @@ class ImageDataset(Dataset):
 
 
 class CompressedImageDataset(Dataset):
-    def __init__(self, root, compressor, transform=None):
+    def __init__(self, root, compressor, file=None, transform=None):
         self.root = root
         self.transform = transform
         self.compressor = compressor
@@ -49,12 +51,15 @@ class CompressedImageDataset(Dataset):
         self.labels = os.listdir(root)
         self.label2int = {label: i for i, label in enumerate(self.labels)}
 
-        print("=> Compressing images")
-        self.images = [
-            self.__compress_image(label, image)
-            for label in tqdm(self.labels)
-            for image in tqdm(os.listdir(os.path.join(root, label)))
-        ]
+        if file:
+            self.images = pickle.load(file)
+        else:
+            print("=> Compressing images")
+            self.images = [
+                self.__compress_image(label, image)
+                for label in tqdm(self.labels)
+                for image in tqdm(os.listdir(os.path.join(root, label)))
+            ]
 
         self.len = len(self.images)
 

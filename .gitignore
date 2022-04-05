@@ -6,9 +6,13 @@ checkpoints/
 results/
 
 *.pth
+*.npy
+*.bin
+*.json
 
 *.zip
 *.tar
+*.tar.gz
 
 *.JPEG
 *.jpg

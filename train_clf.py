@@ -14,6 +14,8 @@ from models.classification import Classifier
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
 from utils import load_checkpoint, norm, save_checkpoint, unnorm
 
+import pickle
+
 
 def train(epoch, model, dataloader, opt, criterion, labels, co=None, **kwargs):
     progress = tqdm(
@@ -139,16 +141,20 @@ def main():
     if config.LOAD_MODEL:
         load_checkpoint(config.CHECKPOINT_CLASS, model, opt, config.LEARNING_RATE)
 
-    dataset_train = CompressedImageDataset(
-        root=cifar10.train_root,
-        compressor=compressor,
-        transform=config.transform_train,
-    )
-    dataset_val = CompressedImageDataset(
-        root=cifar10.val_root,
-        compressor=compressor,
-        transform=config.transform_val,
-    )
+    # dataset_train = CompressedImageDataset(
+    #     root=cifar10.train_root,
+    #     compressor=compressor,
+    #     transform=config.transform_train,
+    # )
+    # dataset_val = CompressedImageDataset(
+    #     root=cifar10.val_root,
+    #     compressor=compressor,
+    #     transform=config.transform_val,
+    # )
+    with open(cifar10.train_compressed, "rb") as f:
+        dataset_train = pickle.load(f)
+    with open(cifar10.val_compressed, "rb") as f:
+        dataset_val = pickle.load(f)
 
     dataloader_train = DataLoader(
         dataset_train,
