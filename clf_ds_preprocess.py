@@ -1,15 +1,14 @@
-from datasets.classification import (CompressedImageDataset,
-                                     cifar10)
-import config
-from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
+import json
 import pickle
-from torchvision import transforms as T
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 import numpy as np
-import json
+from torch.utils.data import DataLoader
+from torchvision import transforms as T
+from tqdm import tqdm
 
+import config
+from datasets.classification import CompressedImageDataset, cifar10
+from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
 
 compressor = HyperpriorWrapper(
     bmshj2018_hyperprior(config.COMPRESS_QUALITY, pretrained=True)
@@ -20,12 +19,10 @@ compressor = HyperpriorWrapper(
 
 try:
     dataset_train = CompressedImageDataset(
-        root=cifar10.train_root,
-        transform=config.transform_train
+        root=cifar10.train_root, transform=config.transform_train
     )
     dataset_val = CompressedImageDataset(
-        root=cifar10.val_root,
-        transform=config.transform_val
+        root=cifar10.val_root, transform=config.transform_val
     )
     img, target = dataset_train[0]
     img = compressor.decompress(img.unsqueeze(dim=0)).squeeze()
@@ -39,12 +36,12 @@ except AssertionError as e:
         root=cifar10.train_root,
         compressor=compressor,
         transform=config.transform_train,
-        compressed=False
+        compressed=False,
     )
 
     dataset_val = CompressedImageDataset(
         root=cifar10.val_root,
         compressor=compressor,
         transform=config.transform_val,
-        compressed=False
+        compressed=False,
     )

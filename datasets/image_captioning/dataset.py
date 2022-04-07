@@ -1,17 +1,15 @@
 import json
 import os
 from collections import Counter
-from sklearn.model_selection import train_test_split
+from random import choice
 
-import torch
 import numpy as np
+import torch
 from PIL import Image
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
-
-from random import choice
-
 
 # class CaptionsDataset(Dataset):
 __DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +18,9 @@ coco_preprocessed = os.path.join(__DIR, "coco2017_preprocessed/")
 img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/image_codes.npy"))
 # img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8.npy"))
 # img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8m.npy"))
-captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/captions_tokenized.json")))
+captions = json.load(
+    open(os.path.join(__DIR, "coco2017_preprocessed/captions_tokenized.json"))
+)
 # captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8.json")))
 # captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8m.json")))
 
@@ -76,7 +76,9 @@ def generate_batch(img_codes, captions, batch_size, max_caption_len=None):
     captions_for_batch_images = captions[random_image_ix]
     batch_captions = list(map(choice, captions_for_batch_images))
     batch_captions_ix = as_matrix(batch_captions, max_len=max_caption_len)
-    return torch.tensor(batch_images, dtype=torch.float32), torch.tensor(batch_captions_ix, dtype=torch.int64)
+    return torch.tensor(batch_images, dtype=torch.float32), torch.tensor(
+        batch_captions_ix, dtype=torch.int64
+    )
 
 
 if __name__ == "__main__":

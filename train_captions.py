@@ -1,17 +1,14 @@
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from IPython.display import clear_output
+from tqdm import tqdm
 
 import config
 from datasets.image_captioning import *
 from models.captioning import CaptionNet
-
 from utils import load_checkpoint, save_checkpoint
-
-import matplotlib.pyplot as plt
-from IPython.display import clear_output
-from tqdm import tqdm
-
 
 feature_size = img_codes.shape[1]
 network = CaptionNet(n_tokens, cnn_feature_size=feature_size).to(config.DEVICE)
@@ -83,12 +80,14 @@ for epoch in range(n_epochs):
     )
     for _ in progress:
 
-        images_batch, captions_batch = generate_batch(train_img_codes, train_captions, batch_size)
-        images_batch, captions_batch = images_batch.to(config.DEVICE), captions_batch.to(config.DEVICE)
-
-        loss_t = compute_loss(
-            network, images_batch, captions_batch
+        images_batch, captions_batch = generate_batch(
+            train_img_codes, train_captions, batch_size
         )
+        images_batch, captions_batch = images_batch.to(
+            config.DEVICE
+        ), captions_batch.to(config.DEVICE)
+
+        loss_t = compute_loss(network, images_batch, captions_batch)
 
         optimizer.zero_grad()
         loss_t.backward()
@@ -110,11 +109,13 @@ for epoch in range(n_epochs):
     network.train(False)
     for _ in range(n_validation_batches):
 
-        images_batch, captions_batch = generate_batch(val_img_codes, val_captions, batch_size)
-        images_batch, captions_batch = images_batch.to(config.DEVICE), captions_batch.to(config.DEVICE)
-        loss_t = compute_loss(
-            network, images_batch, captions_batch
+        images_batch, captions_batch = generate_batch(
+            val_img_codes, val_captions, batch_size
         )
+        images_batch, captions_batch = images_batch.to(
+            config.DEVICE
+        ), captions_batch.to(config.DEVICE)
+        loss_t = compute_loss(network, images_batch, captions_batch)
         val_loss += loss_t.item()
     val_loss /= n_validation_batches
     val_losses.append(val_loss)

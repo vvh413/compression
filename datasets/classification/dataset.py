@@ -1,13 +1,12 @@
 import os
+import pickle
 
 import numpy as np
-from PIL import Image
 import torch
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
-
-import pickle
 
 
 class ImageDataset(Dataset):
@@ -44,7 +43,15 @@ class ImageDataset(Dataset):
 
 
 class CompressedImageDataset(Dataset):
-    def __init__(self, root=None, file=None, compressor=None, compressed=True, transform=None, device="cpu"):
+    def __init__(
+        self,
+        root=None,
+        file=None,
+        compressor=None,
+        compressed=True,
+        transform=None,
+        device="cpu",
+    ):
         self.root = root
         self.transform = transform
         self.compressor = compressor
@@ -92,7 +99,7 @@ class CompressedImageDataset(Dataset):
             img = T.ToTensor()(img)
         img = img.to(self.device)
         img = self.compressor.compress(img.unsqueeze(dim=0)).squeeze()
-        torch.save(img, image_path+".bin")
+        torch.save(img, image_path + ".bin")
         return label, img
 
     def __len__(self):

@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,8 +15,6 @@ from datasets.classification import (CompressedImageDataset, ImageDataset,
 from models.classification import Classifier
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
 from utils import load_checkpoint, norm, save_checkpoint, unnorm
-
-import pickle
 
 
 def train(epoch, model, dataloader, opt, criterion, labels, co=None, **kwargs):
