@@ -15,8 +15,14 @@ from random import choice
 
 # class CaptionsDataset(Dataset):
 __DIR = os.path.dirname(os.path.abspath(__file__))
-img_codes = np.load(os.path.join(__DIR, "preprocessed/image_codes.npy"))
-captions = json.load(open(os.path.join(__DIR, "preprocessed/captions_tokenized.json")))
+coco_raw = os.path.join(__DIR, "coco2017/")
+coco_preprocessed = os.path.join(__DIR, "coco2017_preprocessed/")
+img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/image_codes.npy"))
+# img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8.npy"))
+# img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8m.npy"))
+captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/captions_tokenized.json")))
+# captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8.json")))
+# captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8m.json")))
 
 # split descriptions into tokens
 for img_i in range(len(captions)):

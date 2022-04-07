@@ -13,9 +13,10 @@ from IPython.display import clear_output
 from tqdm import tqdm
 
 
-network = CaptionNet(n_tokens).to(config.DEVICE)
+feature_size = img_codes.shape[1]
+network = CaptionNet(n_tokens, cnn_feature_size=feature_size).to(config.DEVICE)
 
-dummy_img_vec = torch.randn(len(captions[0]), 2048)
+dummy_img_vec = torch.randn(len(captions[0]), feature_size)
 dummy_capt_ix = torch.tensor(as_matrix(captions[0]), dtype=torch.int64)
 dummy_logits = network(dummy_img_vec.to(config.DEVICE), dummy_capt_ix.to(config.DEVICE))
 print("shape:", dummy_logits.shape)
@@ -108,23 +109,27 @@ for epoch in range(n_epochs):
     val_loss = 0
     network.train(False)
     for _ in range(n_validation_batches):
+
+        images_batch, captions_batch = generate_batch(val_img_codes, val_captions, batch_size)
+        images_batch, captions_batch = images_batch.to(config.DEVICE), captions_batch.to(config.DEVICE)
         loss_t = compute_loss(
-            network, *generate_batch(val_img_codes, val_captions, batch_size)
+            network, images_batch, captions_batch
         )
         val_loss += loss_t.item()
     val_loss /= n_validation_batches
     val_losses.append(val_loss)
     print("val_loss =", val_loss)
 
-    save_checkpoint(network, optimizer, filename="captions.pth.tar")
+    # save_checkpoint(network, optimizer, filename="captions_compressed_8m.pth.tar")
 
-    clear_output()
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label="Train loss", color="blue")
-    plt.plot(val_losses, label="Val loss", color="orange")
-    plt.axhline(y=3, color="gray", linestyle="--", label="Target loss")
-    plt.legend()
-    plt.ylabel("Loss")
-    plt.show()
+    # clear_output()
+plt.figure(figsize=(10, 6))
+plt.plot(train_losses, label="Train loss", color="blue")
+plt.plot(val_losses, label="Val loss", color="orange")
+plt.axhline(y=3, color="gray", linestyle="--", label="Target loss")
+plt.legend()
+plt.ylabel("Loss")
+# plt.show()
+plt.savefig("capt_train_plot.png")
 
 print("Finished!")
