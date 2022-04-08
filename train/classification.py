@@ -118,11 +118,10 @@ def main():
     print(config.DEVICE)
 
     # compressor = None
-    compressor = HyperpriorWrapper(
-        bmshj2018_hyperprior(config.COMPRESS_QUALITY, pretrained=True)
+    compressor = (
+        HyperpriorWrapper("s", config.COMPRESS_QUALITY, pretrained=True)
         .eval()
-        .to(config.DEVICE),
-        type="s",
+        .to(config.DEVICE)
     )
     # CH = 3 if compressor is None else 192
 

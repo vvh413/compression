@@ -21,26 +21,11 @@ assert dummy_logits.shape == (dummy_capt_ix.shape[0], dummy_capt_ix.shape[1], n_
 
 
 def compute_loss(network, image_vectors, captions_ix):
-    """
-    :param image_vectors: torch tensor containing inception vectors. shape: [batch, cnn_feature_size]
-    :param captions_ix: torch tensor containing captions as matrix. shape: [batch, word_i].
-        padded with pad_ix
-    :returns: scalar crossentropy loss (neg llh) loss for next captions_ix given previous ones
-    """
-
-    # captions for input - all except last cuz we don't know next token for last one.
     captions_ix_inp = captions_ix[:, :-1].contiguous()
     captions_ix_next = captions_ix[:, 1:].contiguous()
 
-    # apply the network, get predictions for captions_ix_next
     logits_for_next = network.forward(image_vectors, captions_ix_inp)
 
-    # compute the loss function between logits_for_next and captions_ix_next
-    # Use the mask, Luke: make sure that predicting next tokens after EOS do not contribute to loss
-    # you can do that either by multiplying elementwise loss by (captions_ix_next != pad_ix)
-    # or by using ignore_index in some losses.
-
-    # <YOUR CODE>
     logits_for_next = torch.transpose(logits_for_next, 1, 2)
     loss_fn = nn.CrossEntropyLoss(ignore_index=pad_ix)
     loss = loss_fn(logits_for_next, captions_ix_next).unsqueeze(0)
@@ -48,25 +33,12 @@ def compute_loss(network, image_vectors, captions_ix):
     return loss
 
 
-dummy_loss = compute_loss(network, dummy_img_vec.cuda(), dummy_capt_ix.cuda())
-
-assert dummy_loss.shape == torch.Size([1]), "loss must be scalar"
-assert (
-    dummy_loss.data.detach().cpu().numpy() > 0
-), "did you forget the 'negative' part of negative log-likelihood"
-
-dummy_loss.backward()
-
-assert all(
-    param.grad is not None for param in network.parameters()
-), "loss should depend differentiably on all neural network weights"
-
 optimizer = torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4)
 
-batch_size = 32  # adjust me (done)
-n_epochs = 220  # adjust me (done)
-n_batches_per_epoch = 40  # adjust me (done)
-n_validation_batches = 5  # how many batches are used for validation after each epoch
+batch_size = 32
+n_epochs = 220
+n_batches_per_epoch = 40
+n_validation_batches = 5
 
 train_losses = []
 val_losses = []
