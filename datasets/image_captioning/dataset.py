@@ -15,14 +15,11 @@ from tqdm import tqdm
 __DIR = os.path.dirname(os.path.abspath(__file__))
 coco_raw = os.path.join(__DIR, "coco2017/")
 coco_preprocessed = os.path.join(__DIR, "coco2017_preprocessed/")
-img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/image_codes.npy"))
-# img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8.npy"))
-# img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8m.npy"))
+
+img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8a.npy"))
 captions = json.load(
-    open(os.path.join(__DIR, "coco2017_preprocessed/captions_tokenized.json"))
+    open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8a.json"))
 )
-# captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8.json")))
-# captions = json.load(open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8m.json")))
 
 # split descriptions into tokens
 for img_i in range(len(captions)):
@@ -65,9 +62,13 @@ def as_matrix(sequences, max_len=None):
 
 
 captions = np.array(captions)
-train_img_codes, val_img_codes, train_captions, val_captions = train_test_split(
-    img_codes, captions, test_size=0.1, random_state=42
-)
+l10 = len(captions) // 10
+train_img_codes, val_img_codes = img_codes[:-l10], img_codes[-l10:]
+train_captions, val_captions = captions[:-l10], captions[-l10:]
+
+# train_test_split(
+#     , test_size=0.1, random_state=42
+# )
 
 
 def generate_batch(img_codes, captions, batch_size, max_caption_len=None):

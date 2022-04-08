@@ -121,9 +121,8 @@ for epoch in range(n_epochs):
     val_losses.append(val_loss)
     print("val_loss =", val_loss)
 
-    # save_checkpoint(network, optimizer, filename="captions_compressed_8m.pth.tar")
-
-    # clear_output()
+save_checkpoint(network, optimizer, filename="captions_compressed_8a.pth.tar")
+# clear_output()
 plt.figure(figsize=(10, 6))
 plt.plot(train_losses, label="Train loss", color="blue")
 plt.plot(val_losses, label="Val loss", color="orange")
@@ -131,6 +130,6 @@ plt.axhline(y=3, color="gray", linestyle="--", label="Target loss")
 plt.legend()
 plt.ylabel("Loss")
 # plt.show()
-plt.savefig("capt_train_plot.png")
+plt.savefig("plots/capts_8a.png")
 
 print("Finished!")
