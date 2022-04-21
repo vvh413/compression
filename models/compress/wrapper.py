@@ -3,14 +3,16 @@ from compressai.zoo import bmshj2018_hyperprior
 
 
 class HyperpriorWrapper:
-    def __init__(self, type="a", *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.model = bmshj2018_hyperprior(*args, **kwargs)
 
     def to(self, device):
-        return self.model.to(device)
+        self.model.to(device)
+        return self
 
     def eval(self):
-        return self.model.eval()
+        self.model.eval()
+        return self
 
     def compress(self, x):
         out = self.model.compress(x)

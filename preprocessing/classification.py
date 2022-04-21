@@ -10,11 +10,10 @@ import config
 from datasets.classification import CompressedImageDataset, cifar10
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
 
-compressor = HyperpriorWrapper(
-    bmshj2018_hyperprior(config.COMPRESS_QUALITY, pretrained=True)
+compressor = (
+    HyperpriorWrapper(config.COMPRESS_QUALITY, pretrained=True)
     .eval()
-    .to(config.DEVICE),
-    type="s",
+    .to(config.DEVICE)
 )
 
 try:
@@ -25,7 +24,7 @@ try:
         root=cifar10.val_root, transform=config.transform_val
     )
     img, target = dataset_train[0]
-    img = compressor.decompress(img.unsqueeze(dim=0)).squeeze()
+    img = compressor.decode(img.unsqueeze(dim=0)).squeeze()
     T.ToPILImage()(img).show()
     print(img, target, dataset_train.labels[target])
 

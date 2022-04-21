@@ -119,7 +119,7 @@ def main():
 
     # compressor = None
     compressor = (
-        HyperpriorWrapper("s", config.COMPRESS_QUALITY, pretrained=True)
+        HyperpriorWrapper(config.COMPRESS_QUALITY, pretrained=True)
         .eval()
         .to(config.DEVICE)
     )
