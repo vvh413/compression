@@ -10,6 +10,18 @@ from torchvision import transforms as T
 
 import config
 
+import pickle
+
+
+def pickle_dump(obj, file):
+    with open(file, "wb") as f:
+        pickle.dump(obj, f)
+
+
+def pickle_load(file):
+    with open(file, "rb") as f:
+        return pickle.load(f)
+
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
