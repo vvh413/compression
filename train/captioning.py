@@ -6,18 +6,26 @@ from IPython.display import clear_output
 from tqdm import tqdm
 
 import config
-from datasets.image_captioning import *
+from datasets.captioning.dataset import *
 from models.captioning import CaptionNet
 from utils import load_checkpoint, save_checkpoint
+from models.compress import HyperpriorWrapper
 
-feature_size = img_codes.shape[1]
-network = CaptionNet(n_tokens, cnn_feature_size=feature_size).to(config.DEVICE)
 
-dummy_img_vec = torch.randn(len(captions[0]), feature_size)
-dummy_capt_ix = torch.tensor(as_matrix(captions[0]), dtype=torch.int64)
-dummy_logits = network(dummy_img_vec.to(config.DEVICE), dummy_capt_ix.to(config.DEVICE))
-print("shape:", dummy_logits.shape)
-assert dummy_logits.shape == (dummy_capt_ix.shape[0], dummy_capt_ix.shape[1], n_tokens)
+compressor: HyperpriorWrapper = (
+    HyperpriorWrapper(config.COMPRESS_QUALITY, pretrained=True)
+    .eval()
+    .to(config.DEVICE)
+)
+
+network = CaptionNet(n_tokens, pad_ix=pad_ix, cnn_feature_size=512 * 49,
+                     cnn_in_channels=192, cnn_out_channels=512, pool=2).to(config.DEVICE)
+
+# dummy_img_vec = torch.randn(len(captions[0]), feature_size)
+# dummy_capt_ix = torch.tensor(as_matrix(captions[0]), dtype=torch.int64)
+# dummy_logits = network(dummy_img_vec.to(config.DEVICE), dummy_capt_ix.to(config.DEVICE))
+# print("shape:", dummy_logits.shape)
+# assert dummy_logits.shape == (dummy_capt_ix.shape[0], dummy_capt_ix.shape[1], n_tokens)
 
 
 def compute_loss(network, image_vectors, captions_ix):
@@ -36,9 +44,9 @@ def compute_loss(network, image_vectors, captions_ix):
 optimizer = torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4)
 
 batch_size = 32
-n_epochs = 220
-n_batches_per_epoch = 40
-n_validation_batches = 5
+n_epochs = 250
+n_batches_per_epoch = 1000
+n_validation_batches = 100
 
 train_losses = []
 val_losses = []
@@ -55,6 +63,8 @@ for epoch in range(n_epochs):
         images_batch, captions_batch = generate_batch(
             train_img_codes, train_captions, batch_size
         )
+
+        images_batch = compressor.entropy_decode(*images_batch)
         images_batch, captions_batch = images_batch.to(
             config.DEVICE
         ), captions_batch.to(config.DEVICE)
@@ -84,6 +94,7 @@ for epoch in range(n_epochs):
         images_batch, captions_batch = generate_batch(
             val_img_codes, val_captions, batch_size
         )
+        images_batch = compressor.entropy_decode(*images_batch)
         images_batch, captions_batch = images_batch.to(
             config.DEVICE
         ), captions_batch.to(config.DEVICE)
@@ -93,15 +104,16 @@ for epoch in range(n_epochs):
     val_losses.append(val_loss)
     print("val_loss =", val_loss)
 
-save_checkpoint(network, optimizer, filename="captions_compressed_8a.pth.tar")
-# clear_output()
-plt.figure(figsize=(10, 6))
-plt.plot(train_losses, label="Train loss", color="blue")
-plt.plot(val_losses, label="Val loss", color="orange")
-plt.axhline(y=3, color="gray", linestyle="--", label="Target loss")
-plt.legend()
-plt.ylabel("Loss")
-# plt.show()
-plt.savefig("plots/capts_8a.png")
+    save_checkpoint(network, optimizer,
+                    filename="captions_compressed_enc_512_2_1e-3_1000.pth.tar")
+    # clear_output()
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_losses, label="Train loss", color="blue")
+    plt.plot(val_losses, label="Val loss", color="orange")
+    plt.axhline(y=3, color="gray", linestyle="--", label="Target loss")
+    plt.legend()
+    plt.ylabel("Loss")
+    # plt.show()
+    plt.savefig("plots/capts_enc_512_2_1e-3.png")
 
 print("Finished!")

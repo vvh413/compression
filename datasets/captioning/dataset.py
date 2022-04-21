@@ -11,14 +11,18 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
 
+from utils import pickle_load
+
 # class CaptionsDataset(Dataset):
 __DIR = os.path.dirname(os.path.abspath(__file__))
 coco_raw = os.path.join(__DIR, "coco2017/")
 coco_preprocessed = os.path.join(__DIR, "coco2017_preprocessed/")
 
-img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/co_image_codes_8a.npy"))
+# img_codes = np.load(os.path.join(__DIR, "coco2017_preprocessed/image_codes.npy"))
+img_codes = np.array(pickle_load(os.path.join(__DIR, "coco2017_preprocessed/image_codes_co_1.bin")))
+
 captions = json.load(
-    open(os.path.join(__DIR, "coco2017_preprocessed/co_captions_tokenized_8a.json"))
+    open(os.path.join(__DIR, "coco2017_preprocessed/captions_tokenized_co_1.json"))
 )
 
 # split descriptions into tokens
@@ -73,13 +77,18 @@ train_captions, val_captions = captions[:-l10], captions[-l10:]
 
 def generate_batch(img_codes, captions, batch_size, max_caption_len=None):
     random_image_ix = np.random.randint(0, len(img_codes), size=batch_size)
-    batch_images = img_codes[random_image_ix]
+    batch_images = list(zip(*img_codes[random_image_ix, :2])), img_codes[0, 2]
     captions_for_batch_images = captions[random_image_ix]
     batch_captions = list(map(choice, captions_for_batch_images))
     batch_captions_ix = as_matrix(batch_captions, max_len=max_caption_len)
-    return torch.tensor(batch_images, dtype=torch.float32), torch.tensor(
-        batch_captions_ix, dtype=torch.int64
-    )
+    try:
+        return torch.tensor(batch_images, dtype=torch.float32), torch.tensor(
+            batch_captions_ix, dtype=torch.int64
+        )
+    except (TypeError, ValueError):
+        return batch_images, torch.tensor(
+            batch_captions_ix, dtype=torch.int64
+        )
 
 
 if __name__ == "__main__":
@@ -89,3 +98,6 @@ if __name__ == "__main__":
     print(captions[0])
 
     print(as_matrix(captions[1337]))
+
+    # batch, _ = generate_batch(img_codes, captions, 4)
+    # print(batch)

@@ -1,5 +1,7 @@
 import json
 import os
+import pickle
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,15 +14,12 @@ from torchvision.datasets import coco
 from tqdm import tqdm
 
 import config
-from datasets.image_captioning import coco_preprocessed, coco_raw
+from datasets.captioning import coco_preprocessed, coco_raw, annotations
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
+from utils import pickle_dump
 
-compressor = HyperpriorWrapper(
-    bmshj2018_hyperprior(config.COMPRESS_QUALITY, pretrained=True)
-    .eval()
-    .to(config.DEVICE),
-    type="s",
-)
+tag = ("_" + sys.argv[1]) if len(sys.argv) > 1 else ""
+print("tag =", tag)
 
 # with open("datasets/image_captioning/annotations/captions_train2017.json") as f:
 #     j = json.load(f)
@@ -39,28 +38,37 @@ compressor = HyperpriorWrapper(
 # with open("datasets/image_captioning/annotations/captions_train2017.json", "w") as f:
 #     json.dump(j, f)
 
-coco_train = coco.CocoCaptions(
-    coco_raw,
-    "datasets/image_captioning/annotations/captions_train2017.json",
-    transform=config.transform_train,
-)
-dataloader = torch.utils.data.DataLoader(
-    dataset=coco_train, batch_size=8, shuffle=False, num_workers=4
+compressor = (
+    HyperpriorWrapper(config.COMPRESS_QUALITY, pretrained=True)
+    .eval()
+    .to(config.DEVICE)
 )
 
-vectors, captions = [], []
+coco_train = coco.CocoCaptions(
+    coco_raw,
+    os.path.join(annotations, "captions_train2017.json"),
+    transform=config.transform_train,
+)
+
+dataloader = torch.utils.data.DataLoader(
+    dataset=coco_train, batch_size=16, shuffle=False, num_workers=4
+)
+
+images, captions = [], []
 for img_batch, capt_batch in tqdm(dataloader):
     capt_batch = list(zip(*capt_batch))
     img_batch = img_batch.to(config.DEVICE)
-    img_batch_compressed = compressor.compress(img_batch)
-    # img_batch_compressed = F.avg_pool2d(
-    #     img_batch_compressed, kernel_size=2
-    # )  # .view(32, -1)
-    img_batch_compressed = torch.flatten(img_batch_compressed, start_dim=1)
-    vec_batch = img_batch_compressed.cpu().data.numpy()
+    compressed = compressor.compress(img_batch)
+    del img_batch
 
+    strings, shape = compressed["strings"], compressed["shape"]
+    del compressed
     captions.extend(capt_batch)
-    vectors.extend([vec for vec in vec_batch])
+    images.extend([
+        (strings[0][i], strings[1][i], shape)
+        for i in range(len(strings[0]))
+    ])
+    del capt_batch, strings, shape
 
 
 tokenizer = TweetTokenizer()
@@ -71,11 +79,11 @@ captions_tokenized = [
 
 del compressor, coco_train, dataloader, tokenizer
 
-np.save(os.path.join(coco_preprocessed, "co_image_codes_16.npy"), np.asarray(vectors))
+# np.save(os.path.join(coco_preprocessed, "co_image_codes_16.npy"), np.asarray(vectors))
 
-with open(os.path.join(coco_preprocessed, "co_captions_16.json"), "w") as f_cap:
+pickle_dump(images, os.path.join(coco_preprocessed, f"image_codes{tag}.bin"))
+
+with open(os.path.join(coco_preprocessed, f"captions{tag}.json"), "w") as f_cap:
     json.dump(captions, f_cap)
-with open(
-    os.path.join(coco_preprocessed, "co_captions_tokenized_16.json"), "w"
-) as f_cap:
+with open(os.path.join(coco_preprocessed, f"captions_tokenized{tag}.json"), "w") as f_cap:
     json.dump(captions_tokenized, f_cap)
