@@ -38,9 +38,9 @@ class Generator(nn.Module):
             nn.Conv2d(
                 in_channels,
                 n_features[0],
-                kernel_size=5,
+                kernel_size=7,
                 stride=1,
-                padding=2,
+                padding=3,
                 padding_mode="reflect",
             ),
             nn.ReLU(inplace=True),
@@ -86,20 +86,20 @@ class Generator(nn.Module):
         self.final = nn.Conv2d(
             n_features[0],
             in_channels,
-            kernel_size=5,
+            kernel_size=7,
             stride=1,
-            padding=2,
+            padding=3,
             padding_mode="reflect",
         )
 
     def forward(self, x):
-        # x = self.initial(x)
+        x = self.initial(x)
         for layer in self.down:
             x = layer(x)
         x = self.res(x)
         for layer in self.up:
             x = layer(x)
-        # x = self.final(x)
+        x = self.final(x)
         return torch.tanh(x)
 
 

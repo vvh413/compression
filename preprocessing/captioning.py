@@ -10,11 +10,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from nltk.tokenize import TweetTokenizer
 from torch.autograd import Variable
-from torchvision.datasets import coco
+from torchvision.datasets import coco_ds
 from tqdm import tqdm
 
 import config
-from datasets.captioning import coco_preprocessed, coco_raw, annotations
+from datasets.captioning import coco_preprocessed, coco, annotations
 from models.compress import HyperpriorWrapper, bmshj2018_hyperprior
 from utils import pickle_dump
 
@@ -44,8 +44,8 @@ compressor = (
     .to(config.DEVICE)
 )
 
-coco_train = coco.CocoCaptions(
-    coco_raw,
+coco_train = coco_ds.CocoCaptions(
+    coco,
     os.path.join(annotations, "captions_train2017.json"),
     transform=config.transform_train,
 )

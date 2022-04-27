@@ -39,21 +39,17 @@ def make_collate_fn(pad_ix, unk_ix, word_to_index, max_caption_len=None):
     return collate_fn
 
 
-class CompressedImageDataset(Dataset):
+class DecodedImageDataset(Dataset):
     def __init__(
         self,
         root: str,
         captions: str,
-        compressor: HyperpriorWrapper,
         type: str = "coco",
         data_slice: slice = slice(None),
         transform=None,
-        device="cpu",
     ):
         self.root = root
         self.transform = transform
-        self.compressor = compressor
-        self.device = device
 
         self.images = os.listdir(root)[data_slice]
 
@@ -105,9 +101,7 @@ class CompressedImageDataset(Dataset):
     def __getitem__(self, index):
         img = self.images[index]
         image_path = os.path.join(self.root, img)
-        compressed = pickle_load(image_path)
-        image = self.compressor.entropy_decode(compressed["strings"],
-                                               compressed["shape"])
+        image = pickle_load(image_path)
         captions = self.captions[img.rsplit(".", 1)[0]]
         return image, captions
 
@@ -120,9 +114,8 @@ if __name__ == "__main__":
         .eval()
     )
     t1 = time.time()
-    dataset = CompressedImageDataset(coco_tag("co1"),
-                                     os.path.join(annotations, "captions_train2017_tok.json"),
-                                     compressor)
+    dataset = DecodedImageDataset(coco_tag("co1d"),
+                                  os.path.join(annotations, "captions_train2017_tok.json"))
     print(dataset.eos_ix)
     print(dataset.n_tokens)
     t2 = time.time()

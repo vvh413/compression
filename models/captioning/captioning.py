@@ -52,3 +52,49 @@ class CaptionNet(nn.Module):
 
         logits = self.logits(lstm_out)
         return logits
+
+
+class CaptionNetV3(nn.Module):
+    def __init__(
+        self,
+        n_tokens=10000,
+        emb_size=128,
+        pad_ix=0,
+        lstm_units=256,
+        cnn_in_channels=192,
+        feature_size=2048,
+        encoded_image_size=14
+    ):
+        super(self.__class__, self).__init__()
+
+        self.enc = nn.Sequential(
+            nn.Conv2d(cnn_in_channels, feature_size, kernel_size=3),
+            nn.BatchNorm2d(feature_size),
+            nn.ReLU()
+        )
+        self.adaptive_pool = nn.AdaptiveAvgPool2d((encoded_image_size, encoded_image_size))
+
+        self.feature_to_h0 = nn.Linear(feature_size, lstm_units)
+        self.feature_to_c0 = nn.Linear(feature_size, lstm_units)
+
+        self.emb = nn.Embedding(n_tokens, emb_size, padding_idx=pad_ix)
+        self.lstm = nn.LSTM(emb_size, lstm_units, batch_first=True)
+        self.logits = nn.Linear(lstm_units, n_tokens)
+
+    def forward(self, image_vectors, captions_ix):
+        image_vectors = self.adaptive_pool(self.enc(image_vectors))
+
+        batch_size = image_vectors.size(0)
+        encoder_dim = image_vectors.size(1)
+
+        image_vectors = image_vectors.view(batch_size, encoder_dim, -1).mean(dim=-1)
+
+        initial_cell = self.feature_to_h0(image_vectors)
+        initial_hid = self.feature_to_c0(image_vectors)
+
+        captions_emb = self.emb(captions_ix)
+        state = (initial_cell[None], initial_hid[None])
+        lstm_out, state = self.lstm(captions_emb, state)
+
+        logits = self.logits(lstm_out)
+        return logits

@@ -1,1 +1,1 @@
-from .captioning import CaptionNet
+from .captioning import CaptionNet, CaptionNetV3

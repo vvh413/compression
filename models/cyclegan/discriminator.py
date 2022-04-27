@@ -16,7 +16,7 @@ class Block(nn.Module):
                 padding_mode="reflect",
             ),
             nn.InstanceNorm2d(out_channels),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(0.2, inplace=True),
         )
 
     def forward(self, x):
@@ -31,18 +31,18 @@ class Discriminator(nn.Module):
                 in_channels,
                 features[0],
                 kernel_size=4,
-                stride=1,
+                stride=2,
                 padding=1,
                 padding_mode="reflect",
             ),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(0.2, inplace=True),
         )
 
         layers = []
         in_channels = features[0]
         for feature in features[1:]:
             layers.append(
-                Block(in_channels, feature, stride=1 if feature != features[-1] else 1)
+                Block(in_channels, feature, stride=2 if feature != features[-1] else 1)
             )
             in_channels = feature
         layers.append(
@@ -65,7 +65,7 @@ class Discriminator(nn.Module):
         return D_X_real_loss + D_X_fake_loss
 
     def forward(self, x):
-        # x = self.initial(x)
+        x = self.initial(x)
         return torch.sigmoid(self.model(x))
 
 

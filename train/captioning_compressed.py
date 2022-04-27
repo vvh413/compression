@@ -1,19 +1,18 @@
-import pickle
 from time import time
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pack_padded_sequence
+from IPython.display import clear_output
 from tqdm import tqdm
 
 import os
 import json
 
 import config
-from datasets.captioning import coco_tag, annotations, vocab_path, coco
-from datasets.captioning.dataset_default import get_loader
-from datasets.captioning.build_vocab import Vocabulary
+from datasets.captioning import coco_tag, annotations
+# from datasets.captioning.dataset import CompressedImageDataset, make_collate_fn
+from datasets.captioning.dataset_decoded import DecodedImageDataset, make_collate_fn
 from models.captioning import CaptionNet, CaptionNetV3
 from utils import load_checkpoint, save_checkpoint
 from models.compress import HyperpriorWrapper
@@ -21,48 +20,45 @@ from models.compress import HyperpriorWrapper
 from torch.utils.data import DataLoader
 
 
-compressor: HyperpriorWrapper = (
-    HyperpriorWrapper(config.COMPRESS_QUALITY, pretrained=True)
-    .eval()
-    .to(config.DEVICE)
-)
-
 train_size = int(118287 * 0.9)
 
-with open(vocab_path, "rb") as f:
-    vocab = pickle.load(f)
-
-pad_ix = vocab('<pad>')
-start_ix = vocab('<start>')
-end_ix = vocab('<end>')
-unk_ix = vocab('<unk>')
-
-dataloader_train = get_loader(
-    coco,
-    os.path.join(annotations, "captions_train2017.json"),
-    vocab,
-    transform=config.transform_train,
-    batch_size=config.BATCH_SIZE,
-    shuffle=True,
-    num_workers=config.NUM_WORKERS,
+dataset_train = DecodedImageDataset(
+    coco_tag("co1d"),
+    os.path.join(annotations, "captions_train2017_tok.json"),
     data_slice=slice(train_size)
 )
 
-dataloader_val = get_loader(
-    coco,
-    os.path.join(annotations, "captions_train2017.json"),
-    vocab,
-    transform=config.transform_train,
+dataset_val = DecodedImageDataset(
+    coco_tag("co1d"),
+    os.path.join(annotations, "captions_train2017_tok.json"),
+    data_slice=slice(train_size, None),
+)
+
+dataloader_train = DataLoader(
+    dataset_train,
     batch_size=config.BATCH_SIZE,
     shuffle=True,
     num_workers=config.NUM_WORKERS,
-    data_slice=slice(train_size, None),
+    # pin_memory=True,
+    collate_fn=make_collate_fn(dataset_train.pad_ix,
+                               dataset_train.unk_ix, 
+                               dataset_train.word_to_index)
+)
+dataloader_val = DataLoader(
+    dataset_val,
+    batch_size=config.BATCH_SIZE,
+    shuffle=True,
+    num_workers=config.NUM_WORKERS,
+    # pin_memory=True,
+    collate_fn=make_collate_fn(dataset_val.pad_ix,
+                               dataset_val.unk_ix,
+                               dataset_val.word_to_index)
 )
 
 
 # network = CaptionNet(dataset_train.n_tokens, pad_ix=dataset_train.pad_ix, cnn_feature_size=512 * 49,
 #                      cnn_in_channels=192, cnn_out_channels=512, pool=2).to(config.DEVICE)
-tag = "capts_v3_e100_5e4_512emb"
+tag = "capts_de_v3_co1d_e100_5e4_512emb"
 
 # network_config = dict(
 #     n_tokens=dataset_train.n_tokens, emb_size=256,
@@ -71,8 +67,8 @@ tag = "capts_v3_e100_5e4_512emb"
 # )
 
 network_config = dict(
-    n_tokens=len(vocab), emb_size=512,
-    pad_ix=pad_ix, lstm_units=512,
+    n_tokens=dataset_train.n_tokens, emb_size=512,
+    pad_ix=dataset_train.pad_ix, lstm_units=512,
     feature_size=2048, cnn_in_channels=192
 )
 
@@ -94,7 +90,7 @@ def compute_loss(network, criterion, image_vectors, captions_ix):
 
 optimizer = torch.optim.Adam(network.parameters(), lr=config.LEARNING_RATE) #, weight_decay=1e-4)
 
-criterion = nn.CrossEntropyLoss(ignore_index=pad_ix)
+criterion = nn.CrossEntropyLoss(ignore_index=dataset_train.pad_ix)
 
 # n_batches_per_epoch = 1000
 # n_validation_batches = 100
@@ -133,26 +129,25 @@ for epoch in range(epoch_start, config.NUM_EPOCHS):
     train_loss = 0
     network.train(True)
     progress = tqdm(dataloader_train, leave=True, desc=f"Epoch [{epoch+1}/{config.NUM_EPOCHS}]")
-    for images, captions, lengths in progress:
+    for images_batch, captions_batch in progress:
 
         # images_batch = compressor.entropy_decode(*images_batch)
-        images, captions = images.to(config.DEVICE), captions.to(config.DEVICE)
-        compressed = compressor.compress(images)
-        images = compressor.entropy_decode(compressed["strings"], compressed["shape"])
-        # targets = pack_padded_sequence(captions, lengths, batch_first=True)[0]
+        images_batch, captions_batch = images_batch.to(
+            config.DEVICE
+        ), captions_batch.to(config.DEVICE)
 
-        loss = compute_loss(network, criterion, images, captions)
+        loss_t = compute_loss(network, criterion, images_batch, captions_batch)
 
         optimizer.zero_grad()
-        loss.backward()
+        loss_t.backward()
         optimizer.step()
 
-        train_loss += loss.item()
+        train_loss += loss_t.item()
 
         progress.set_description(
             (
                 f"train | epoch [{epoch+1}/{config.NUM_EPOCHS}] | "
-                f"loss = {loss.item():.3f} | "
+                f"loss = {loss_t.item():.3f} | "
             )
         )
 
@@ -162,14 +157,14 @@ for epoch in range(epoch_start, config.NUM_EPOCHS):
     val_loss = 0
     network.train(False)
     progress = tqdm(dataloader_val, leave=True, desc=f"Epoch [{epoch+1}/{config.NUM_EPOCHS}]")
-    for images, captions, lengths in progress:
+    for images_batch, captions_batch in progress:
 
         # images_batch = compressor.entropy_decode(*images_batch)
-        images, captions = images.to(config.DEVICE), captions.to(config.DEVICE)
-        compressed = compressor.compress(images)
-        images = compressor.entropy_decode(compressed["strings"], compressed["shape"])
-        loss = compute_loss(network, criterion, images, captions)
-        val_loss += loss.item()
+        images_batch, captions_batch = images_batch.to(
+            config.DEVICE
+        ), captions_batch.to(config.DEVICE)
+        loss_t = compute_loss(network, criterion, images_batch, captions_batch)
+        val_loss += loss_t.item()
 
     val_loss /= len(dataloader_val)
     val_losses.append(val_loss)
