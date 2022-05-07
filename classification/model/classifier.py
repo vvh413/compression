@@ -66,31 +66,20 @@ class Classifier(nn.Module):
     def __init__(
         self,
         in_features=49152,
-        n_classes=1000,
-        dropout=0.3,
-        # hidden_layers=1,
-        n_hidden=4096,
+        n_classes=10,
+        dropout=0.1,
+        n_hidden=1024,
     ):
         super().__init__()
-
-        # hidden = []
-        # for _ in range(hidden_layers):
-        #     hidden.extend(
-        #         [
-        #             nn.Dropout(p=dropout),
-        #             nn.Linear(n_hidden, n_hidden),
-        #             nn.ReLU(),
-        #         ]
-        #     )
 
         self.mlp = nn.Sequential(
             nn.Flatten(),
             nn.Linear(in_features, n_hidden),
-            nn.ReLU(),
-            # *hidden,
             nn.Dropout(p=dropout),
-            nn.Linear(n_hidden, n_classes),
-            nn.Sigmoid()
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_hidden//2),
+            nn.ReLU(),
+            nn.Linear(n_hidden//2, n_classes)
         )
 
     def forward(self, x):

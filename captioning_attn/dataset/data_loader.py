@@ -36,7 +36,6 @@ class Vocabulary:
 
         # staring index 4
         idx = 4
-
         for sentence in sentence_list:
             for word in self.tokenize(sentence):
                 frequencies[word] += 1
@@ -58,9 +57,9 @@ class FlickrDataset(Dataset):
     FlickrDataset
     """
 
-    def __init__(self, root_dir, caption_file, transform=None, freq_threshold=5):
+    def __init__(self, root_dir, caption_file, transform=None, freq_threshold=5, sep=","):
         self.root_dir = root_dir
-        self.df = pd.read_csv(caption_file)
+        self.df = pd.read_csv(caption_file, sep=sep)
         self.transform = transform
 
         # Get image and caption colum from the dataframe

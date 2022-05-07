@@ -1,12 +1,16 @@
+import os
 import torch
 from compressai.zoo import bmshj2018_hyperprior
 from PIL import Image
+import random
 import torchvision.transforms as T
 
 
 class HyperpriorWrapper:
     def __init__(self, *args, **kwargs):
         self.model = bmshj2018_hyperprior(*args, **kwargs)
+        for param in self.model.parameters():
+            param.requires_grad = False  # (param in self.model.g_s)
 
     def to(self, device):
         self.model.to(device)
@@ -60,12 +64,14 @@ if __name__ == "__main__":
         .eval()
         .to("cuda")
     )
-    x = T.ToTensor()(Image.open("../dataset/horse2zebra/trainA/n02381460_1001.jpg")).to("cuda")
-    print(x, x.shape)
+    path = "../dataset/horse2zebra/trainA/"
+    img = random.choice(os.listdir(path))
+    x = T.ToTensor()(Image.open(os.path.join(path, img))).to("cuda")
+    print(x.min(), x.max(), x.mean(), x.shape)
     co = compressor.compress(x[None])
     y = compressor.entropy_decode(co["strings"], co["shape"])
-    print(y.min(), y.max(), y.shape)
+    print(y.min(), y.max(), y.mean(), y.shape)
     y2 = compressor.encode(x[None])
-    print(y2.min(), y2.max(), y2.shape)
-    T.ToPILImage()(compressor.decode(y)[0].cpu()).show()
-    T.ToPILImage()(compressor.decode(y2)[0].cpu()).show()
+    print(y2.min(), y2.max(), y2.mean(), y2.shape)
+    # T.ToPILImage()(compressor.decode(y)[0].cpu()).show()
+    # T.ToPILImage()(compressor.decode(y2)[0].cpu()).show()

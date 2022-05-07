@@ -19,9 +19,9 @@ from dataset import horse2zebra as h2z
 
 @torch.no_grad()
 def compress(x, co):
-    compressed = co.compress(x)
-    return co.entropy_decode(compressed["strings"], compressed["shape"])
-    # return co.encode(x)
+    return co.encode(x)
+    # compressed = co.compress(x)
+    # return co.entropy_decode(compressed["strings"], compressed["shape"])
 
 
 @torch.no_grad()
@@ -32,7 +32,7 @@ def decompress(y, co):
 
 
 def train_cycle(
-    epoch, model, dataloader, opt_dis, opt_gen, l1, mse, co=None
+    epoch, model, dataloader, opt_dis, opt_gen, co=None
 ):
 
     progress = tqdm(
@@ -43,18 +43,18 @@ def train_cycle(
         X = X.to(config.DEVICE)
         Y = Y.to(config.DEVICE)
 
-        X = compress(X, co).detach()
-        Y = compress(Y, co).detach()
+        X = compress(X, co)
+        Y = compress(Y, co)
 
         X_fake, Y_fake = model(X, Y)
 
-        D_loss = model.loss_D(X, Y, X_fake.detach(), Y_fake.detach(), mse)
+        D_loss = model.loss_D(X, Y, X_fake.detach(), Y_fake.detach())
 
         opt_dis.zero_grad()
         D_loss.backward()
         opt_dis.step()
 
-        G_loss = model.loss_G(X, Y, X_fake, Y_fake, mse, l1)
+        G_loss = model.loss_G(X, Y, X_fake, Y_fake, co)
 
         opt_gen.zero_grad()
         G_loss.backward()
@@ -65,8 +65,11 @@ def train_cycle(
                 f"Epoch [{epoch+1}/{config.NUM_EPOCHS}] | "
                 f"D_loss = {D_loss:.3f} | "
                 f"G_loss = {G_loss:.3f} "
+                f"Y_fake = {Y_fake.mean().item():.3f} "
             )
         )
+
+        assert str(G_loss.item()) != 'nan'
 
         if i % 200 == 0:
             X_fake = decompress(X_fake[:1], co).detach()
@@ -80,6 +83,7 @@ def train_cycle(
 
 
 def main():
+    print(config.tag)
     print(config.DEVICE)
 
     if not os.path.exists(config.RESULTS):
@@ -92,31 +96,30 @@ def main():
     )
 
     model = CycleGAN(
-        in_channels=320,
-        dis_features=[320],
-        gen_features=[320, 512, 512],
-        n_residuals=9
+        in_channels=192,
+        dis_features=[1024],
+        gen_features=[1024, 1024, 1024],
+        n_residuals=6
     ).to(config.DEVICE)
 
     opt_dis = optim.Adam(
         list(model.dis_X.parameters()) + list(model.dis_Y.parameters()),
         lr=config.LEARNING_RATE,
         betas=(0.5, 0.999),
+        weight_decay=1e-4
     )
     opt_gen = optim.Adam(
         list(model.gen_X.parameters()) + list(model.gen_Y.parameters()),
         lr=config.LEARNING_RATE * 2,
         betas=(0.5, 0.999),
+        weight_decay=1e-4
     )
-
-    l1 = nn.L1Loss()
-    mse = nn.MSELoss()
 
     if config.LOAD_MODEL:
         load_checkpoint(
-            config.CHECKPOINT_CYCLE_GEN, model, opt_gen, config.LEARNING_RATE * 2
+            config.CHECKPOINT_CYCLE_GEN + ".4", model, opt_gen, config.LEARNING_RATE * 2
         )
-        load_checkpoint(config.CHECKPOINT_CYCLE_DIS, model, opt_dis, config.LEARNING_RATE)
+        load_checkpoint(config.CHECKPOINT_CYCLE_DIS + ".4", model, opt_dis, config.LEARNING_RATE)
     else:
         config.START_EPOCH = 0
 
@@ -140,14 +143,12 @@ def main():
             dataloader,
             opt_dis,
             opt_gen,
-            l1,
-            mse,
             compressor,
         )
 
         if config.SAVE_MODEL:
-            save_checkpoint(model, opt_gen, filename=config.CHECKPOINT_CYCLE_GEN)
-            save_checkpoint(model, opt_dis, filename=config.CHECKPOINT_CYCLE_DIS)
+            save_checkpoint(model, opt_gen, filename=config.CHECKPOINT_CYCLE_GEN + f".{epoch%5}")
+            save_checkpoint(model, opt_dis, filename=config.CHECKPOINT_CYCLE_DIS + f".{epoch%5}")
 
 
 if __name__ == "__main__":

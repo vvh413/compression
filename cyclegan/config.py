@@ -3,14 +3,14 @@ from torchvision import transforms as T
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-tag = "co8_1e4_320ch_9res_fullgen_ident"
+tag = "co1_1e5_wd_1024ch_2x2_6res_bce_c"
 
 BATCH_SIZE = 1
 NUM_WORKERS = 16
 NUM_EPOCHS = 200
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-5
 
-LAMBDA_CYCLE = 10
+LAMBDA_CYCLE = 100
 LAMBDA_IDENTITY = 0.0  # 0.5 * LAMBDA_CYCLE
 
 LOAD_MODEL = False
@@ -22,7 +22,7 @@ RESULTS = f"results/{tag}"
 
 START_EPOCH = 0
 
-COMPRESS_QUALITY = 8
+COMPRESS_QUALITY = 1
 
 transform_train = T.Compose(
     [

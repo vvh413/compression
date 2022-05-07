@@ -21,12 +21,17 @@ class ResBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.block = nn.Sequential(
-            ConvBlock(channels, channels, kernel_size=3, padding=1),
-            ConvBlock(channels, channels, act=False, kernel_size=3, padding=1),
+            ConvBlock(channels, channels, kernel_size=2, padding=1),
+            ConvBlock(channels, channels, act=False, kernel_size=2, padding=0),
         )
 
     def forward(self, x):
         return x + self.block(x)
+
+
+def log(x):
+    shape = x.shape
+    print(shape, shape[1] * shape[2] * shape[3])
 
 
 class Generator(nn.Module):
@@ -38,9 +43,9 @@ class Generator(nn.Module):
             nn.Conv2d(
                 in_channels,
                 n_features[0],
-                kernel_size=7,
+                kernel_size=2,
                 stride=1,
-                padding=3,
+                padding=0,
                 padding_mode="reflect",
             ),
             nn.ReLU(inplace=True),
@@ -48,12 +53,12 @@ class Generator(nn.Module):
 
         self.down = nn.ModuleList(
             [
-                ConvBlock(
-                    n_features[0], n_features[1], kernel_size=3, stride=1, padding=1
-                ),
-                ConvBlock(
-                    n_features[1], n_features[2], kernel_size=3, stride=1, padding=1
-                ),
+                # ConvBlock(
+                #     n_features[0], n_features[1], kernel_size=2, stride=1, padding=1
+                # ),
+                # ConvBlock(
+                #     n_features[1], n_features[2], kernel_size=2, stride=1, padding=0
+                # ),
             ]
         )
 
@@ -61,24 +66,24 @@ class Generator(nn.Module):
 
         self.up = nn.ModuleList(
             [
-                ConvBlock(
-                    n_features[2],
-                    n_features[1],
-                    down=False,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                    output_padding=0,
-                ),
-                ConvBlock(
-                    n_features[1],
-                    n_features[0],
-                    down=False,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                    output_padding=0,
-                ),
+                # ConvBlock(
+                #     n_features[2],
+                #     n_features[1],
+                #     down=False,
+                #     kernel_size=2,
+                #     stride=1,
+                #     padding=0,
+                #     output_padding=0,
+                # ),
+                # ConvBlock(
+                #     n_features[1],
+                #     n_features[0],
+                #     down=False,
+                #     kernel_size=2,
+                #     stride=1,
+                #     padding=1,
+                #     output_padding=0,
+                # ),
             ]
         )
 
@@ -87,11 +92,27 @@ class Generator(nn.Module):
         self.final = nn.Conv2d(
             n_features[0],
             in_channels,
-            kernel_size=7,
+            kernel_size=2,
             stride=1,
-            padding=3,
+            padding=1,
             padding_mode="reflect",
         )
+
+    def forward_log(self, x):
+        log(x)
+        x = self.initial(x)
+        log(x)
+        for layer in self.down:
+            x = layer(x)
+            log(x)
+        x = self.res(x)
+        log(x)
+        for layer in self.up:
+            x = layer(x)
+            log(x)
+        x = self.final(x)
+        log(x)
+        return x  # torch.tanh(x)
 
     def forward(self, x):
         x = self.initial(x)
@@ -109,9 +130,9 @@ def test():
     img_size = 16
     n = 10
     x = torch.randn((n, img_channels, img_size, img_size))
-    gen = Generator(img_channels, n_features=[256, 256, 256])
+    gen = Generator(img_channels, n_features=[512, 1024, 2048])
     # print(gen)
-    y = gen(x)
+    y = gen.forward_log(x)
     print(y.min(), y.max(), y.shape)
 
 

@@ -29,6 +29,11 @@ class ResBlock(nn.Module):
         return x + self.block(x)
 
 
+def log(x):
+    shape = x.shape
+    print(shape, shape[1] * shape[2] * shape[3])
+
+
 class Generator(nn.Module):
     def __init__(self, in_channels=3, n_features=[64, 128, 256], n_residuals=9):
         super().__init__()
@@ -49,7 +54,7 @@ class Generator(nn.Module):
         self.down = nn.ModuleList(
             [
                 ConvBlock(
-                    n_features[0], n_features[1], kernel_size=3, stride=1, padding=1
+                    n_features[0], n_features[1], kernel_size=3, stride=2, padding=1
                 ),
                 ConvBlock(
                     n_features[1], n_features[2], kernel_size=3, stride=2, padding=1
@@ -75,9 +80,9 @@ class Generator(nn.Module):
                     n_features[0],
                     down=False,
                     kernel_size=3,
-                    stride=1,
+                    stride=2,
                     padding=1,
-                    output_padding=0,
+                    output_padding=1,
                 ),
             ]
         )
@@ -91,6 +96,22 @@ class Generator(nn.Module):
             padding=3,
             padding_mode="reflect",
         )
+
+    def forward_log(self, x):
+        log(x)
+        x = self.initial(x)
+        log(x)
+        for layer in self.down:
+            x = layer(x)
+            log(x)
+        x = self.res(x)
+        log(x)
+        for layer in self.up:
+            x = layer(x)
+            log(x)
+        x = self.final(x)
+        log(x)
+        return torch.tanh(x)
 
     def forward(self, x):
         x = self.initial(x)
@@ -109,8 +130,9 @@ def test():
     n = 10
     x = torch.randn((n, img_channels, img_size, img_size))
     gen = Generator(img_channels)
+    y = gen.forward_log(x)
     # print(gen)
-    print(gen(x).shape)
+    # print(y.shape)
 
 
 if __name__ == "__main__":

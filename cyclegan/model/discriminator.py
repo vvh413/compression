@@ -23,6 +23,11 @@ class Block(nn.Module):
         return self.conv(x)
 
 
+def log(x):
+    shape = x.shape
+    print(shape, shape[1] * shape[2] * shape[3])
+
+
 class Discriminator(nn.Module):
     def __init__(self, in_channels=3, features=[64, 128, 256, 512]):
         super().__init__()
@@ -57,12 +62,23 @@ class Discriminator(nn.Module):
         )
         self.model = nn.Sequential(*layers)
 
-    def _loss(self, X, Y, X_fake, mse):
+        self.mse = nn.MSELoss()
+
+    def _loss(self, X, Y, X_fake):
         D_X_real = self(X)
         D_X_fake = self(X_fake)
-        D_X_real_loss = mse(D_X_real, torch.ones_like(D_X_real))
-        D_X_fake_loss = mse(D_X_fake, torch.zeros_like(D_X_fake))
+        D_X_real_loss = self.mse(D_X_real, torch.ones_like(D_X_real))
+        D_X_fake_loss = self.mse(D_X_fake, torch.zeros_like(D_X_fake))
         return D_X_real_loss + D_X_fake_loss
+
+    def forward_log(self, x):
+        log(x)
+        x = self.initial(x)
+        log(x)
+        for layer in self.model:
+            x = layer(x)
+            log(x)
+        return torch.sigmoid(x)
 
     def forward(self, x):
         x = self.initial(x)
@@ -72,8 +88,8 @@ class Discriminator(nn.Module):
 def test():
     x = torch.randn((10, 3, 256, 256))
     model = Discriminator()
-    preds = model(x)
-    print(preds.shape)
+    preds = model.forward_log(x)
+    # print(preds.shape)
 
 
 if __name__ == "__main__":
